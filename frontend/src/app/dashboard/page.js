@@ -11,17 +11,22 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user, token, API_BASE_URL, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
-  // Navigation Guard
   useEffect(() => {
     if (!user) {
       router.push('/login');
     }
-  }, [user]);
+  }, [user, router]);
 
   if (!user) return null;
+  
+  return <DashboardContent />;
+}
+
+function DashboardContent() {
+  const { user, token, API_BASE_URL, logout } = useAuth();
 
   // Global State
   const [activeTab, setActiveTab] = useState(user.role === 'ADMIN' ? 'reports' : user.role === 'RECEPTIONIST' ? 'patients' : 'appointments');
@@ -350,7 +355,7 @@ export default function Dashboard() {
     }
   };
 
-  // Search Doctors (SQL Injection vulnerable API!)
+  // Search Doctors API
   const searchPhysiciansAdmin = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/doctors?search=${adminSearchQuery}`, {
@@ -360,7 +365,7 @@ export default function Dashboard() {
       if (Array.isArray(data)) {
         setDoctorsList(data);
       } else {
-        alert(`API Error: ${data.sqlMessage || data.error}`);
+        alert(`Search failed: ${data.error || 'Unknown error'}`);
       }
     } catch (e) {
       console.error(e);
@@ -1124,16 +1129,7 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="p-3 bg-rose-500/10 text-rose-500 text-xs rounded-lg border border-rose-500/20 font-semibold leading-5 flex gap-3">
-              <ShieldAlert className="h-5 w-5 shrink-0" />
-              <div>
-                <strong>SQL Vulnerability alert:</strong> This search executes raw interpolation: 
-                <code className="block bg-black/10 dark:bg-black/30 p-1.5 rounded mt-1 font-mono">
-                  SELECT * FROM &quot;Doctor&quot; WHERE name ILIKE &apos;%&#123;query&#125;%&apos;
-                </code>
-                Can be audited by inputting standard SQL injection strings to leak full user login lists.
-              </div>
-            </div>
+
 
             {/* Doctors Result List */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

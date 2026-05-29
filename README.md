@@ -95,4 +95,34 @@ Examine frontend React components:
 
 ---
 
+## ✅ Solutions Implemented
+
+### Challenge 1: Security Audit
+- **Credential Logging**: Removed `console.log` of raw passwords in the authentication route (`backend/src/routes/auth.js`).
+- **Leaky Token Signature**: Moved the JWT secret key from the hardcoded string to `.env` using `process.env.JWT_SECRET`.
+- **SQL Injection**: Replaced raw string concatenation in the `doctors` search query with parameterized inputs.
+- **Bypassed Authorization**: Added a strict role check (`user.role !== 'ADMIN'`) to the admin report generation endpoint.
+
+### Challenge 2: Backend Performance & Concurrency
+- **N+1 Database Queries**: Replaced looping database queries for `patient` data in the `queue` route with an `include: { patient: true }` Prisma relation.
+- **Event-Loop Blocking**: Updated sequential `await` promises in the `dashboard` statistics route with `Promise.all()` for concurrent execution.
+- **Slow Aggregation Endpoint**: Fixed the inefficient loops in the `/reports/doctor-stats` endpoint by using Prisma `groupBy` database aggregation.
+- **Check-in Token Race Condition**: Applied `$transaction` locks and atomic updates in `backend/src/routes/queue.js` when generating token numbers.
+
+### Challenge 3: Database & Schema Optimization
+- **Schema Vulnerabilities**: Enforced a composite unique constraint (`doctorId`, `appointmentDate`) in `schema.prisma` to prevent double-booking.
+- **Missing Indices**: Added `@@index([status])` and `@@index([doctorId])` to significantly improve lookup speed for the queue table.
+- **Paging Optimization**: Modified the `patients` route to use native SQL `skip` and `take` via Prisma instead of retrieving all records to slice them in-memory.
+
+### Challenge 4: Frontend Memory & React Optimization
+- **Severe Memory Leak**: Added a cleanup function `return () => clearInterval(intervalId)` inside the `queue/page.js` `useEffect` polling logic.
+- **Unnecessary Re-renders**: Implemented a 500ms `setTimeout` debounce in the `dashboard/page.js` patient list search hook.
+- **NULL Value Application Crash**: Applied optional chaining (`medicalHistory?.toUpperCase()`) with a fallback string to prevent the modal from crashing on `null` histories.
+- **React Hooks Violation**: Extracted `DashboardContent` into a subcomponent to avoid `if (!user) return null` early returns before hooks in `dashboard/page.js`.
+
+### Challenge 5: Incomplete Feature Delivery
+- **Resolved 404 Error**: Constructed the missing `src/app/patients/[id]/history-records/page.js` with secure API fetching, loading states, and a premium glassmorphic UI.
+
+---
+
 Good luck! You will be evaluated based on the cleanliness, correctness, efficiency, and safety of your refactoring.

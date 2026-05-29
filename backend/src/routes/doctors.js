@@ -22,12 +22,9 @@ router.get('/', authenticate, async (req, res) => {
       conditions.push(Prisma.sql`specialization = ${specialization}`);
     }
 
-    let whereClause = Prisma.empty;
-    if (conditions.length > 0) {
-      whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
-    }
-
-    const query = Prisma.sql`SELECT * FROM "Doctor" ${whereClause}`;
+    const query = conditions.length > 0 
+      ? Prisma.sql`SELECT * FROM "Doctor" WHERE ${Prisma.join(conditions, ' AND ')}`
+      : Prisma.sql`SELECT * FROM "Doctor"`;
 
     // SECURED: Uses parameterized $queryRaw
     const doctors = await prisma.$queryRaw(query);
