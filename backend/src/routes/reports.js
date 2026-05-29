@@ -15,48 +15,21 @@ router.get('/doctor-stats', authenticate, async (req, res) => {
 
     // 1. Fetch all doctors
     const doctors = await prisma.doctor.findMany();
-    const reportData = [];
-
-    // 2. Loop through every doctor and query databases sequentially!
-    for (const doc of doctors) {
-      console.log(`[SLOW REPORT] Querying stats sequentially for doctor: ${doc.name}`);
-
-      // Count total appointments
-      const totalAppointments = await prisma.appointment.count({
-        where: { doctorId: doc.id },
-      });
-
-      // Count completed appointments
-      const completedAppointments = await prisma.appointment.count({
-        where: { doctorId: doc.id, status: 'COMPLETED' },
-      });
-
-      // Count cancelled appointments
-      const cancelledAppointments = await prisma.appointment.count({
-        where: { doctorId: doc.id, status: 'CANCELLED' },
-      });
-
-      // Fetch queue tokens count today
+    // SECURED: Concurrently map over doctors and parallelize inner queries
+    const reportData = await Promise.all(doctors.map(async (doc) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const queueTokensCount = await prisma.queueToken.count({
-        where: {
-          doctorId: doc.id,
-          createdAt: { gte: today },
-        },
-      });
 
-      // Calculate total potential revenue
-      const appointmentsList = await prisma.appointment.findMany({
-        where: { doctorId: doc.id, status: 'COMPLETED' },
-      });
-      const revenue = appointmentsList.length * doc.consultationFee;
+      const [totalAppointments, completedAppointments, cancelledAppointments, queueTokensCount] = await Promise.all([
+        prisma.appointment.count({ where: { doctorId: doc.id } }),
+        prisma.appointment.count({ where: { doctorId: doc.id, status: 'COMPLETED' } }),
+        prisma.appointment.count({ where: { doctorId: doc.id, status: 'CANCELLED' } }),
+        prisma.queueToken.count({ where: { doctorId: doc.id, createdAt: { gte: today } } }),
+      ]);
 
-      // Add artifical wait to simulate load under scaled database
-      // "Ensures database connection doesn't drop" - junior dev comment
-      await new Promise(r => setTimeout(r, 80));
+      const revenue = completedAppointments * doc.consultationFee;
 
-      reportData.push({
+      return {
         id: doc.id,
         name: doc.name,
         specialization: doc.specialization,
@@ -66,8 +39,8 @@ router.get('/doctor-stats', authenticate, async (req, res) => {
         cancelledAppointments,
         todayQueueSize: queueTokensCount,
         revenue,
-      });
-    }
+      };
+    }));
 
     const durationMs = Date.now() - start;
 
